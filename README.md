@@ -1,0 +1,1 @@
+# GNUEmacsBug11732
