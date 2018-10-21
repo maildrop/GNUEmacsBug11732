@@ -1,0 +1,13 @@
+Index: src/w32fns.c
+===================================================================
+--- src.orig/w32fns.c
++++ src/w32fns.c
+@@ -4551,7 +4551,7 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+ 	 dialog boxes, such as the file selection dialog or font
+ 	 selection dialog.  So something else is needed to fix the
+ 	 former without breaking the latter.  See bug#11732.  */
+-      break;
++      goto dflt;
+ 
+     case WM_IME_ENDCOMPOSITION:
+       ignore_ime_char = 0;

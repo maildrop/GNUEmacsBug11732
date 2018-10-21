@@ -1,0 +1,171 @@
+Index: src/w32fns.c
+===================================================================
+--- src.orig/w32fns.c
++++ src/w32fns.c
+@@ -351,6 +351,10 @@ static void unwind_create_tip_frame (Lis
+ static void my_create_window (struct frame *);
+ static void my_create_tip_window (struct frame *);
+ 
++static void 
++w32_imm_track_composition_window( HWND hwnd ,struct w32_display_info *dpyinfo);
++
++
+ /* TODO: Native Input Method support; see x_create_im.  */
+ void x_set_foreground_color (struct frame *, Lisp_Object, Lisp_Object);
+ void x_set_background_color (struct frame *, Lisp_Object, Lisp_Object);
+@@ -4492,59 +4496,7 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+       break;
+ 
+     case WM_IME_STARTCOMPOSITION:
+-      if (!set_ime_composition_window_fn)
+-	goto dflt;
+-      else
+-	{
+-	  COMPOSITIONFORM form;
+-	  HIMC context;
+-	  struct window *w;
+-
+-	  /* Implementation note: The code below does something that
+-	     one shouldn't do: it accesses the window object from a
+-	     separate thread, while the main (a.k.a. "Lisp") thread
+-	     runs and can legitimately delete and even GC it.  That is
+-	     why we are extra careful not to futz with a window that
+-	     is different from the one recorded when the system caret
+-	     coordinates were last modified.  That is also why we are
+-	     careful not to move the IME window if the window
+-	     described by W was deleted, as indicated by its buffer
+-	     field being reset to nil.  */
+-	  f = x_window_to_frame (dpyinfo, hwnd);
+-	  if (!(f && FRAME_LIVE_P (f)))
+-	    goto dflt;
+-	  w = XWINDOW (FRAME_SELECTED_WINDOW (f));
+-	  /* Punt if someone changed the frame's selected window
+-	     behind our back. */
+-	  if (w != w32_system_caret_window)
+-	    goto dflt;
+-
+-	  form.dwStyle = CFS_RECT;
+-	  form.ptCurrentPos.x = w32_system_caret_x;
+-	  form.ptCurrentPos.y = w32_system_caret_y;
+-
+-	  form.rcArea.left = WINDOW_TEXT_TO_FRAME_PIXEL_X (w, 0);
+-	  form.rcArea.top = (WINDOW_TOP_EDGE_Y (w)
+-			     + w32_system_caret_hdr_height);
+-	  form.rcArea.right = (WINDOW_BOX_RIGHT_EDGE_X (w)
+-			       - WINDOW_RIGHT_MARGIN_WIDTH (w)
+-			       - WINDOW_RIGHT_FRINGE_WIDTH (w));
+-	  form.rcArea.bottom = (WINDOW_BOTTOM_EDGE_Y (w)
+-				- WINDOW_BOTTOM_DIVIDER_WIDTH (w)
+-				- w32_system_caret_mode_height);
+-
+-	  /* Punt if the window was deleted behind our back.  */
+-	  if (!BUFFERP (w->contents))
+-	    goto dflt;
+-
+-	  context = get_ime_context_fn (hwnd);
+-
+-	  if (!context)
+-	    goto dflt;
+-
+-	  set_ime_composition_window_fn (context, &form);
+-	  release_ime_context_fn (hwnd, context);
+-	}
++      w32_imm_track_composition_window( hwnd, dpyinfo );
+       /* We should "goto dflt" here to pass WM_IME_STARTCOMPOSITION to
+ 	 DefWindowProc, so that the composition window will actually
+ 	 be displayed.  But doing so causes trouble with displaying
+@@ -5305,8 +5257,10 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+ 		       w32_system_caret_height);
+ 	}
+ 
++      w32_imm_track_composition_window( hwnd , dpyinfo );
++
+       if (!SetCaretPos (w32_system_caret_x, w32_system_caret_y))
+-	return 0;
++        return 0;
+       /* Ensure visible caret gets turned on when requested.  */
+       else if (w32_use_visible_system_caret
+ 	       && w32_visible_system_caret_hwnd != hwnd)
+@@ -11176,3 +11130,63 @@ ntgui_encode_system (Lisp_Object str)
+ }
+ 
+ #endif /* NTGUI_UNICODE */
++
++static void 
++w32_imm_track_composition_window( HWND hwnd ,struct w32_display_info *dpyinfo)
++{
++  if (!set_ime_composition_window_fn)
++    return;
++  else
++    {
++      COMPOSITIONFORM form;
++      HIMC context;
++      struct window *w;
++      struct frame *f;
++
++      /* Implementation note: The code below does something that
++         one shouldn't do: it accesses the window object from a
++         separate thread, while the main (a.k.a. "Lisp") thread
++         runs and can legitimately delete and even GC it.  That is
++         why we are extra careful not to futz with a window that
++         is different from the one recorded when the system caret
++         coordinates were last modified.  That is also why we are
++         careful not to move the IME window if the window
++         described by W was deleted, as indicated by its buffer
++         field being reset to nil.  */
++      f = x_window_to_frame (dpyinfo, hwnd);
++      if (!(f && FRAME_LIVE_P (f)))
++        return;
++      w = XWINDOW (FRAME_SELECTED_WINDOW (f));
++      /* Punt if someone changed the frame's selected window
++         behind our back. */
++      if (w != w32_system_caret_window)
++        return;
++
++      form.dwStyle = CFS_RECT;
++      form.ptCurrentPos.x = w32_system_caret_x;
++      form.ptCurrentPos.y = w32_system_caret_y;
++
++      form.rcArea.left = WINDOW_TEXT_TO_FRAME_PIXEL_X (w, 0);
++      form.rcArea.top = (WINDOW_TOP_EDGE_Y (w)
++                         + w32_system_caret_hdr_height);
++      form.rcArea.right = (WINDOW_BOX_RIGHT_EDGE_X (w)
++                           - WINDOW_RIGHT_MARGIN_WIDTH (w)
++                           - WINDOW_RIGHT_FRINGE_WIDTH (w));
++      form.rcArea.bottom = (WINDOW_BOTTOM_EDGE_Y (w)
++                            - WINDOW_BOTTOM_DIVIDER_WIDTH (w)
++                            - w32_system_caret_mode_height);
++
++      /* Punt if the window was deleted behind our back.  */
++      if (!BUFFERP (w->contents))
++        return;
++
++      context = get_ime_context_fn (hwnd);
++
++      if (!context)
++        return;
++
++      set_ime_composition_window_fn (context, &form);
++      release_ime_context_fn (hwnd, context);
++    }
++  return;
++}
+Index: src/w32term.c
+===================================================================
+--- src.orig/w32term.c
++++ src/w32term.c
+@@ -1,4 +1,4 @@
+-/* Implementation of GUI terminal on the Microsoft Windows API.
++﻿/* Implementation of GUI terminal on the Microsoft Windows API.
+ 
+ Copyright (C) 1989, 1993-2018 Free Software Foundation, Inc.
+ 
+@@ -5864,7 +5864,7 @@ w32_draw_window_cursor (struct window *w
+ 	  w32_system_caret_hdr_height = WINDOW_HEADER_LINE_HEIGHT (w);
+ 	  w32_system_caret_mode_height = WINDOW_MODE_LINE_HEIGHT (w);
+ 
+-	  PostMessage (hwnd, WM_IME_STARTCOMPOSITION, 0, 0);
++	  //PostMessage (hwnd, WM_IME_STARTCOMPOSITION, 0, 0);
+ 
+ 	  /* If the size of the active cursor changed, destroy the old
+ 	     system caret.  */

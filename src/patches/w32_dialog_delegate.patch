@@ -1,0 +1,185 @@
+Index: src/w32term.h
+===================================================================
+--- src.orig/w32term.h
++++ src/w32term.h
+@@ -655,7 +655,8 @@ do { \
+ #define WM_EMACS_BRINGTOTOP            (WM_EMACS_START + 23)
+ #define WM_EMACS_INPUT_READY           (WM_EMACS_START + 24)
+ #define WM_EMACS_FILENOTIFY            (WM_EMACS_START + 25)
+-#define WM_EMACS_END                   (WM_EMACS_START + 26)
++#define WM_EMACS_DELEGATE_UI_THREAD    (WM_EMACS_START + 26)
++#define WM_EMACS_END                   (WM_EMACS_START + 27)
+ 
+ #define WND_FONTWIDTH_INDEX    (0)
+ #define WND_LINEHEIGHT_INDEX   (4)
+@@ -870,3 +871,27 @@ extern void w32_init_main_thread (void);
+ #ifdef CYGWIN
+ extern int w32_message_fd;
+ #endif /* CYGWIN */
++
++enum
++{
++ /*  Values for wParam at windows message WM_EMACS_DELEGATE_UI_THREAD 
++     WM_EMACS_DELEGATE_UI_THREAD function number. 
++ */
++   EMACS_DELEGATE_UI_THREAD_FILEDIALOGA = 1 ,
++   EMACS_DELEGATE_UI_THREAD_FILEDIALOGW = 2 ,
++   EMACS_DELEGATE_UI_THREAD_FONTDIALOG  = 3 ,
++};
++
++/* for EMACS_DELEGATE_UI_THREAD_FILEDIALOG lParam */
++struct EmacsDelegateUITthreadFileDalogParameter{
++  size_t dwSize;
++  BOOL dialogResult;
++  void* lpofn;
++};
++
++/* for EMACS_DELEGATE_UI_THREAD_FONTDIALOG  lParam */
++struct EmacsDelegateUITthreadFontDialogParameter{
++  size_t dwSize;
++  BOOL dialogResult;
++  void* lpcf;
++};
+Index: src/w32fns.c
+===================================================================
+--- src.orig/w32fns.c
++++ src/w32fns.c
+@@ -1,4 +1,4 @@
+-/* Graphical user interface functions for the Microsoft Windows API.
++﻿/* Graphical user interface functions for the Microsoft Windows API.
+ 
+ Copyright (C) 1989, 1992-2018 Free Software Foundation, Inc.
+ 
+@@ -5375,6 +5375,54 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+       my_post_msg (&wmsg, hwnd, msg, wParam, lParam);
+       return 1;
+ 
++    case WM_EMACS_DELEGATE_UI_THREAD:
++      {
++        LRESULT retval = 0;
++        switch( wParam ){
++        case EMACS_DELEGATE_UI_THREAD_FILEDIALOGA:
++          {
++            if(! lParam ) return 0; 
++
++            struct EmacsDelegateUITthreadFileDalogParameter* param =
++              (struct EmacsDelegateUITthreadFileDalogParameter*)lParam;
++
++            if( sizeof(struct EmacsDelegateUITthreadFileDalogParameter ) != param->dwSize )
++              return 0;
++
++            param->dialogResult = GetOpenFileNameA( (LPOPENFILENAMEA)param->lpofn );
++            return 1;
++          }
++        case EMACS_DELEGATE_UI_THREAD_FILEDIALOGW:
++          {
++            if(! lParam ) return 0; 
++
++            struct EmacsDelegateUITthreadFileDalogParameter* param =
++              (struct EmacsDelegateUITthreadFileDalogParameter*)lParam;
++
++            if( sizeof(struct EmacsDelegateUITthreadFileDalogParameter ) != param->dwSize )
++              return 0;
++
++            param->dialogResult = GetOpenFileNameW( (LPOPENFILENAMEW)param->lpofn );
++            return 1;
++          }
++        case EMACS_DELEGATE_UI_THREAD_FONTDIALOG:
++          {
++            if(! lParam ) return 0;
++            struct EmacsDelegateUITthreadFontDialogParameter* param =
++              (struct EmacsDelegateUITthreadFontDialogParameter*)lParam;
++            
++            if( sizeof( struct EmacsDelegateUITthreadFontDialogParameter ) !=  param->dwSize )
++              return 0;
++            param->dialogResult = ChooseFont( (LPCHOOSEFONT)param->lpcf );
++            return 1;
++          }
++        default:
++          retval = 0;
++          break;
++        }
++        return retval;
++      }
++      
+     default:
+       /* Check for messages registered at runtime. */
+       if (msg == msh_mousewheel)
+@@ -7983,16 +8031,40 @@ value of DIR as in previous invocations;
+       block_input ();
+       if (use_unicode)
+ 	{
++          struct EmacsDelegateUITthreadFileDalogParameter param = {0};
++
+ 	  file_details_w->lpfnHook = file_dialog_callback;
+ 
+-	  file_opened = GetOpenFileNameW (file_details_w);
++	  /* file_opened = GetOpenFileNameW (file_details_w); */
++
++          param.dwSize = sizeof(struct EmacsDelegateUITthreadFileDalogParameter);
++          param.lpofn = (void*)(file_details_w);
++          if( SendMessage( file_details_w->hwndOwner ,
++                           WM_EMACS_DELEGATE_UI_THREAD ,
++                           EMACS_DELEGATE_UI_THREAD_FILEDIALOGW ,
++                           (LPARAM)( &param ) ) ){
++            file_opened = param.dialogResult ;
++          }else
++            file_opened = FALSE;
+ 	}
+ #ifndef NTGUI_UNICODE
+       else
+ 	{
++          struct EmacsDelegateUITthreadFileDalogParameter param = {0};
++
+ 	  file_details_a->lpfnHook = file_dialog_callback;
+ 
+-	  file_opened = GetOpenFileNameA (file_details_a);
++	  /* file_opened = GetOpenFileNameA (file_details_a); */
++
++          param.dwSize = sizeof(struct EmacsDelegateUITthreadFileDalogParameter);
++          param.lpofn = (void*)(file_details_a);
++          if( SendMessage( file_details_w->hwndOwner ,
++                           WM_EMACS_DELEGATE_UI_THREAD ,
++                           EMACS_DELEGATE_UI_THREAD_FILEDIALOGA ,
++                           (LPARAM)( &param ) ) ){
++            file_opened = param.dialogResult ;
++          }else
++            file_opened = FALSE;
+ 	}
+ #endif	/* !NTGUI_UNICODE */
+       unblock_input ();
+Index: src/w32font.c
+===================================================================
+--- src.orig/w32font.c
++++ src/w32font.c
+@@ -1,4 +1,4 @@
+-/* Font backend for the Microsoft Windows API.
++﻿/* Font backend for the Microsoft Windows API.
+    Copyright (C) 2007-2018 Free Software Foundation, Inc.
+ 
+ This file is part of GNU Emacs.
+@@ -2562,10 +2562,20 @@ in the font selection dialog. */)
+     specbind (Qinhibit_redisplay, Qt);
+     record_unwind_protect (w32_dialog_in_progress, Qnil);
+ 
+-    if (ChooseFont (&cf)
+-	&& logfont_to_fcname (&lf, cf.iPointSize, buf, 100) >= 0)
+-      value = DECODE_SYSTEM (build_string (buf));
+-
++    {
++      struct EmacsDelegateUITthreadFontDialogParameter param = {0};
++      param.dwSize = sizeof( struct EmacsDelegateUITthreadFontDialogParameter );
++      param.lpcf = (void*)&cf;
++      if( SendMessage( cf.hwndOwner ,
++                       WM_EMACS_DELEGATE_UI_THREAD ,
++                       EMACS_DELEGATE_UI_THREAD_FONTDIALOG ,
++                       (LPARAM)&param ) )
++        {
++          if( param.dialogResult 
++              && logfont_to_fcname (&lf, cf.iPointSize, buf, 100) >= 0)
++            value = DECODE_SYSTEM (build_string (buf));
++        }
++    }
+     unbind_to (count, Qnil);
+ 
+     return value;
