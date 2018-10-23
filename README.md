@@ -1,13 +1,13 @@
-# GNUEmacsBug11732
+ï»¿# GNUEmacsBug11732
 https://github.com/emacs-jp/issues/issues/29
 
 https://debbugs.gnu.org/cgi/bugreport.cgi?bug=11732
 
-![ƒvƒŒƒ[ƒ“ƒe[ƒVƒ‡ƒ“1](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/1.PNG "1ƒy[ƒW–Ú")
-![ƒvƒŒƒ[ƒ“ƒe[ƒVƒ‡ƒ“2](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/2.PNG "2ƒy[ƒW–Ú")
-![ƒvƒŒƒ[ƒ“ƒe[ƒVƒ‡ƒ“3](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/3.PNG "3ƒy[ƒW–Ú")
-![ƒvƒŒƒ[ƒ“ƒe[ƒVƒ‡ƒ“4](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/4.PNG "4ƒy[ƒW–Ú")
+![ãƒ—ãƒ¬ã‚¼ãƒ³ãƒ†ãƒ¼ã‚·ãƒ§ãƒ³1](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/1.PNG "1ãƒšãƒ¼ã‚¸ç›®")
+![ãƒ—ãƒ¬ã‚¼ãƒ³ãƒ†ãƒ¼ã‚·ãƒ§ãƒ³2](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/2.PNG "2ãƒšãƒ¼ã‚¸ç›®")
+![ãƒ—ãƒ¬ã‚¼ãƒ³ãƒ†ãƒ¼ã‚·ãƒ§ãƒ³3](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/3.PNG "3ãƒšãƒ¼ã‚¸ç›®")
+![ãƒ—ãƒ¬ã‚¼ãƒ³ãƒ†ãƒ¼ã‚·ãƒ§ãƒ³4](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/4.PNG "4ãƒšãƒ¼ã‚¸ç›®")
 https://github.com/maildrop/GNUEmacsBug11732/blob/master/src/patches/w32_dialog_delegate.patch
-![ƒvƒŒƒ[ƒ“ƒe[ƒVƒ‡ƒ“5](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/5.PNG "5ƒy[ƒW–Ú")
-![ƒvƒŒƒ[ƒ“ƒe[ƒVƒ‡ƒ“6](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/6.PNG "6ƒy[ƒW–Ú")
-![ƒvƒŒƒ[ƒ“ƒe[ƒVƒ‡ƒ“7](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/7.PNG "6ƒy[ƒW–Ú")
+![ãƒ—ãƒ¬ã‚¼ãƒ³ãƒ†ãƒ¼ã‚·ãƒ§ãƒ³5](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/5.PNG "5ãƒšãƒ¼ã‚¸ç›®")
+![ãƒ—ãƒ¬ã‚¼ãƒ³ãƒ†ãƒ¼ã‚·ãƒ§ãƒ³6](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/6.PNG "6ãƒšãƒ¼ã‚¸ç›®")
+![ãƒ—ãƒ¬ã‚¼ãƒ³ãƒ†ãƒ¼ã‚·ãƒ§ãƒ³7](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/7.PNG "6ãƒšãƒ¼ã‚¸ç›®")
