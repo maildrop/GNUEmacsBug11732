@@ -1,4 +1,4 @@
-﻿#GNUEmacsBug11732
+#GNUEmacsBug11732
 ##議論の内容
 https://github.com/emacs-jp/issues/issues/29
 
