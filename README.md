@@ -5,6 +5,8 @@ https://github.com/emacs-jp/issues/issues/29
 ## 元々のバグについて
 https://debbugs.gnu.org/cgi/bugreport.cgi?bug=11732
 
+IMEの変換ウィンドウが出ない問題
+
 ## パッチの内容について
 ![プレゼンテーション1](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/1.PNG "1ページ目")
 ![プレゼンテーション2](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/2.PNG "2ページ目")
