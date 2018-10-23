@@ -1,8 +1,8 @@
-#GNUEmacsBug11732
-##議論の内容
+# GNUEmacsBug11732
+## 議論の内容
 https://github.com/emacs-jp/issues/issues/29
 
-##元々のバグについて
+## 元々のバグについて
 https://debbugs.gnu.org/cgi/bugreport.cgi?bug=11732
 
 ##パッチの内容について
