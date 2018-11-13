@@ -2,18 +2,39 @@ Index: src/w32fns.c
 ===================================================================
 --- src.orig/w32fns.c
 +++ src/w32fns.c
-@@ -351,6 +351,10 @@ static void unwind_create_tip_frame (Lis
+@@ -163,6 +163,10 @@ typedef HIMC (WINAPI * ImmGetContext_Pro
+ typedef BOOL (WINAPI * ImmReleaseContext_Proc) (IN HWND wnd, IN HIMC context);
+ typedef BOOL (WINAPI * ImmSetCompositionWindow_Proc) (IN HIMC context,
+ 						      IN COMPOSITIONFORM *form);
++typedef BOOL (WINAPI * ImmGetCompositionWindow_Proc) (IN HIMC context ,
++                                                      OUT LPCOMPOSITIONFORM form);
++typedef BOOL (WINAPI * ImmSetOpenStatus_Proc)( IN HIMC context , IN BOOL fOpen );
++typedef BOOL (WINAPI * ImmGetOpenStatus_Proc)( IN HIMC context );
+ typedef HMONITOR (WINAPI * MonitorFromPoint_Proc) (IN POINT pt, IN DWORD flags);
+ typedef BOOL (WINAPI * GetMonitorInfo_Proc)
+   (IN HMONITOR monitor, OUT struct MONITOR_INFO* info);
+@@ -180,6 +184,9 @@ ImmGetCompositionString_Proc get_composi
+ ImmGetContext_Proc get_ime_context_fn = NULL;
+ ImmReleaseContext_Proc release_ime_context_fn = NULL;
+ ImmSetCompositionWindow_Proc set_ime_composition_window_fn = NULL;
++ImmGetCompositionWindow_Proc get_ime_composition_window_fn = NULL;
++ImmSetOpenStatus_Proc set_ime_open_status_fn = NULL;
++ImmGetOpenStatus_Proc get_ime_open_status_fn = NULL;
+ MonitorFromPoint_Proc monitor_from_point_fn = NULL;
+ GetMonitorInfo_Proc get_monitor_info_fn = NULL;
+ MonitorFromWindow_Proc monitor_from_window_fn = NULL;
+@@ -351,6 +358,10 @@ static void unwind_create_tip_frame (Lis
  static void my_create_window (struct frame *);
  static void my_create_tip_window (struct frame *);
  
-+static void 
-+w32_imm_track_composition_window( HWND hwnd ,struct w32_display_info *dpyinfo);
++static void w32_imm_track_composition_window( HWND hwnd ,struct w32_display_info *dpyinfo);
++static void w32_imm_wm_ime_composition( HWND hWnd , WPARAM* wParam , LPARAM *lParam );
 +
 +
  /* TODO: Native Input Method support; see x_create_im.  */
  void x_set_foreground_color (struct frame *, Lisp_Object, Lisp_Object);
  void x_set_background_color (struct frame *, Lisp_Object, Lisp_Object);
-@@ -4492,59 +4496,7 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+@@ -4492,59 +4503,7 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
        break;
  
      case WM_IME_STARTCOMPOSITION:
@@ -74,7 +95,45 @@ Index: src/w32fns.c
        /* We should "goto dflt" here to pass WM_IME_STARTCOMPOSITION to
  	 DefWindowProc, so that the composition window will actually
  	 be displayed.  But doing so causes trouble with displaying
-@@ -5305,8 +5257,10 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+@@ -4553,6 +4512,9 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+ 	 former without breaking the latter.  See bug#11732.  */
+       goto dflt;
+ 
++    case WM_IME_COMPOSITION:
++      w32_imm_wm_ime_composition( hwnd , &wParam , &lParam );
++      goto dflt;
+     case WM_IME_ENDCOMPOSITION:
+       ignore_ime_char = 0;
+       goto dflt;
+@@ -5139,7 +5101,27 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
+ 
+ #ifdef WINDOWSNT
+     case WM_CREATE:
++
++      if( get_ime_context_fn && release_ime_context_fn ){
++        eassert( get_ime_open_status_fn );
++        eassert( set_ime_open_status_fn );
++        if( get_ime_open_status_fn && set_ime_open_status_fn ){
++          HIMC hImc = get_ime_context_fn( hwnd );
++          if( hImc ){
++            const BOOL openStatus = get_ime_open_status_fn( hImc );
++            if(! set_ime_open_status_fn( hImc , ! openStatus  ) ){
++              OutputDebugString( TEXT(" ImmSetOpenStatus failed"));
++            }
++            if(! set_ime_open_status_fn( hImc , openStatus  ) ){
++              OutputDebugString( TEXT(" ImmSetOpenStatus failed"));
++            }
++            release_ime_context_fn(hwnd, hImc);
++          }
++        }
++      }
++
+       setup_w32_kbdhook ();
++      
+       goto dflt;
+ #endif
+ 
+@@ -5305,8 +5287,10 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
  		       w32_system_caret_height);
  	}
  
@@ -86,7 +145,38 @@ Index: src/w32fns.c
        /* Ensure visible caret gets turned on when requested.  */
        else if (w32_use_visible_system_caret
  	       && w32_visible_system_caret_hwnd != hwnd)
-@@ -11176,3 +11130,63 @@ ntgui_encode_system (Lisp_Object str)
+@@ -11130,14 +11114,22 @@ globals_of_w32fns (void)
+ 
+   {
+     HMODULE imm32_lib = GetModuleHandle ("imm32.dll");
+-    get_composition_string_fn = (ImmGetCompositionString_Proc)
+-      GetProcAddress (imm32_lib, "ImmGetCompositionStringW");
+-    get_ime_context_fn = (ImmGetContext_Proc)
+-      GetProcAddress (imm32_lib, "ImmGetContext");
+-    release_ime_context_fn = (ImmReleaseContext_Proc)
+-      GetProcAddress (imm32_lib, "ImmReleaseContext");
+-    set_ime_composition_window_fn = (ImmSetCompositionWindow_Proc)
+-      GetProcAddress (imm32_lib, "ImmSetCompositionWindow");
++    if( imm32_lib ){
++      get_composition_string_fn = (ImmGetCompositionString_Proc)
++        GetProcAddress (imm32_lib, "ImmGetCompositionStringW");
++      get_ime_context_fn = (ImmGetContext_Proc)
++        GetProcAddress (imm32_lib, "ImmGetContext");
++      release_ime_context_fn = (ImmReleaseContext_Proc)
++        GetProcAddress (imm32_lib, "ImmReleaseContext");
++      set_ime_composition_window_fn = (ImmSetCompositionWindow_Proc)
++        GetProcAddress (imm32_lib, "ImmSetCompositionWindow");
++      get_ime_composition_window_fn = (ImmGetCompositionWindow_Proc)
++        GetProcAddress (imm32_lib, "ImmGetCompositionWindow");
++      set_ime_open_status_fn = (ImmSetOpenStatus_Proc)
++        GetProcAddress( imm32_lib, "ImmSetOpenStatus");
++      get_ime_open_status_fn = (ImmGetOpenStatus_Proc)
++        GetProcAddress( imm32_lib, "ImmGetOpenStatus");
++    }
+   }
+ 
+   except_code = 0;
+@@ -11176,3 +11168,165 @@ ntgui_encode_system (Lisp_Object str)
  }
  
  #endif /* NTGUI_UNICODE */
@@ -94,14 +184,12 @@ Index: src/w32fns.c
 +static void 
 +w32_imm_track_composition_window( HWND hwnd ,struct w32_display_info *dpyinfo)
 +{
-+  if (!set_ime_composition_window_fn)
-+    return;
-+  else
++  if (set_ime_composition_window_fn && get_ime_composition_window_fn )
 +    {
-+      COMPOSITIONFORM form;
-+      HIMC context;
-+      struct window *w;
-+      struct frame *f;
++      COMPOSITIONFORM form = {0};
++      HIMC context = 0;
++      struct window *w = NULL;
++      struct frame *f = NULL;
 +
 +      /* Implementation note: The code below does something that
 +         one shouldn't do: it accesses the window object from a
@@ -142,12 +230,116 @@ Index: src/w32fns.c
 +
 +      context = get_ime_context_fn (hwnd);
 +
-+      if (!context)
-+        return;
++      if (context)
++      {
++        /* Avoid calling unnecessary ImmSetCompositionWindow */
++        do{
++          COMPOSITIONFORM current_form = {0};
++          /* ImmGetCompostionWindow before invoking ImmSetCompositionWindow will fail. */
++          if( get_ime_composition_window_fn (context, &current_form ) ){
++            if( current_form.dwStyle == form.dwStyle
++                && current_form.ptCurrentPos.x == form.ptCurrentPos.x
++                && current_form.ptCurrentPos.y == form.ptCurrentPos.y
++                && current_form.rcArea.left == form.rcArea.left
++                && current_form.rcArea.top == form.rcArea.top
++                && current_form.rcArea.right == form.rcArea.right
++                && current_form.rcArea.bottom == form.rcArea.bottom ){
++              /* same position and rect area */
++              break;
++            }
++          }
++          set_ime_composition_window_fn (context, &form);
++        }while( 0 );
 +
-+      set_ime_composition_window_fn (context, &form);
-+      release_ime_context_fn (hwnd, context);
++        release_ime_context_fn (hwnd, context);
++      }
 +    }
++  return;
++}
++
++static void
++w32_imm_wm_ime_composition( HWND hWnd , WPARAM* wParam , LPARAM *lParam )
++{
++  if( (!get_ime_composition_window_fn)
++      || (!get_ime_context_fn )
++      || (!release_ime_context_fn ) )
++    return;
++  
++  if( *lParam & GCS_RESULTSTR )
++    {
++      HIMC hImc = get_ime_context_fn( hWnd );
++      if(! hImc ) return;
++      
++      const LONG byte_size = get_composition_string_fn( hImc , GCS_RESULTSTR , NULL , 0 );
++      
++      switch( byte_size ){
++      case IMM_ERROR_NODATA:
++      case IMM_ERROR_GENERAL:
++      case 0:
++        break;
++      default:
++        {
++          /* byte_size is supposed even, odd values ​​since also take ,
++             and to 2 by adding a minute fraction .*/
++          size_t const character_length =
++            (((size_t)((ULONG)byte_size) )/sizeof( wchar_t )) + 2 ;
++
++          LPVOID himestr = HeapAlloc( GetProcessHeap() ,
++                                      HEAP_ZERO_MEMORY ,
++                                      (SIZE_T)(sizeof(wchar_t) * character_length ));
++          if( himestr ){
++            const LONG copydata_bytes =
++              get_composition_string_fn( hImc , GCS_RESULTSTR , himestr , sizeof( wchar_t ) * character_length );
++
++            eassert( copydata_bytes < (character_length * sizeof( wchar_t ) ));
++              
++            switch( copydata_bytes ){
++            case IMM_ERROR_NODATA:
++            case IMM_ERROR_GENERAL:
++            case 0:
++              break;
++            default:
++              {
++                if( byte_size == copydata_bytes ){
++                  wchar_t* lpStr = ( wchar_t *)himestr;
++                  size_t const loop_end = (((size_t)((ULONG)byte_size) )/sizeof( wchar_t ));
++                  for( size_t i = 0 ; i < loop_end ; ++i ){
++
++                    /* considering UTF-16 surrogate pair */
++                    if( L'\0' == lpStr[i] ) break; 
++                    uint32_t utf32_code = 0; /* UTF32 */
++                    if ((lpStr[i] & 0xFC00) == 0xD800         /* This is hight surrogate */
++                        && (lpStr[i + 1] & 0xFC00) == 0xDC00) /* This is low surrogate */
++                      { /* (lpStr[i]) and ( lpStr[i+1] ) make surrogate pair. */ 
++                        /*  make UTF-32 codepoint from UTF-16 surrogate pair */
++                        utf32_code = 0x10000 + (((lpStr[i] & 0x3FF) << 10) | (lpStr[i + 1] & 0x3FF));
++                        ++i; /* surrogate pair were processed ,so advance lpStr pointer */
++                      }
++                    else
++                      { /* (lpStr[i]) is pointing BMP */
++                        utf32_code = lpStr[i]; 
++                      }
++
++                    /* TODO validate utf-32 codepoint */
++
++                    if( utf32_code )
++                      SendMessageW( hWnd , WM_UNICHAR , (WPARAM) utf32_code , 0 );
++                  } /* end of cracking IME Result string and queueing WM_UNICHARs. */
++                }
++              }
++            }
++
++            if( ! HeapFree( GetProcessHeap() , 0 , himestr ) ){
++              eassert( !"! HeapFree( GetProcessHeap() , 0 , himestr ) " );
++            }
++
++          }
++        }
++        break;
++      }
++      release_ime_context_fn(hWnd,hImc);
++      *lParam &= (~GCS_RESULTSTR ); 
++    } // end of if ( *lParam & GCS_RESULTSTR )
 +  return;
 +}
 Index: src/w32term.c
