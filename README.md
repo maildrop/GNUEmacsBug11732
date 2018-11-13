@@ -5,7 +5,6 @@ https://github.com/emacs-jp/issues/issues/29
 ## 元々のバグについて
 https://debbugs.gnu.org/cgi/bugreport.cgi?bug=11732
 
-
 ## パッチの内容について
 ![プレゼンテーション1](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/1.PNG "1ページ目")
 ![プレゼンテーション2](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/2.PNG "2ページ目")
@@ -15,3 +14,6 @@ https://github.com/maildrop/GNUEmacsBug11732/blob/master/src/patches/w32_dialog_
 ![プレゼンテーション5](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/5.PNG "5ページ目")
 ![プレゼンテーション6](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/6.PNG "6ページ目")
 ![プレゼンテーション7](https://raw.githubusercontent.com/maildrop/GNUEmacsBug11732/master/document/7.PNG "6ページ目")
+
+## 追記
+現在のパッチは当方の環境で UTF-8 Byte Order mark が混じっているので、注意されたし
