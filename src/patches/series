@@ -1,3 +1,4 @@
 w32_dialog_delegate.patch
 w32_enable_composition_goto_dflt.patch
+w32_wm_paint_optimize.patch
 w32ime.patch

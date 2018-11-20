@@ -1,0 +1,128 @@
+Index: src/w32xfns.c
+===================================================================
+--- src.orig/w32xfns.c
++++ src/w32xfns.c
+@@ -1,4 +1,4 @@
+-/* Functions taken directly from X sources for use with the Microsoft Windows API.
++﻿/* Functions taken directly from X sources for use with the Microsoft Windows API.
+    Copyright (C) 1989, 1992-1995, 1999, 2001-2018 Free Software
+    Foundation, Inc.
+ 
+@@ -197,6 +197,102 @@ int_msg *lpHead = NULL;
+ int_msg *lpTail = NULL;
+ int nQueue = 0;
+ 
++#if 1
++
++static void
++merge_wm_paint_in_get_next_msg()
++{
++  if(! lpHead )
++    return;
++
++  if(! lpHead->lpNext )
++    return;
++
++  if( lpHead->w32msg.msg.message == WM_PAINT )
++    {
++      int_msg *wm_paint_msg = lpHead;
++      RECT union_rect = lpHead->w32msg.rect;
++      int_msg *head = NULL;
++      int_msg *tail = NULL;
++      int_msg *lpCur = lpHead->lpNext;
++      while( lpCur )
++      {
++        if( lpCur->w32msg.msg.message == WM_PAINT )
++          {
++            int_msg* nextCur = lpCur->lpNext;
++            RECT rect = union_rect;
++
++            if(! UnionRect( &union_rect , &rect , &lpCur->w32msg.rect ) )
++              SetRectEmpty( &union_rect );
++            myfree( lpCur );
++            lpCur = nextCur;
++            nQueue--;
++          }
++        else
++          {
++            if(! head )
++              head = lpCur;
++
++            *( (tail) ? &tail->lpNext : &head ) = lpCur;
++            tail = lpCur;
++            lpCur = tail->lpNext;
++          }
++      }
++      wm_paint_msg->w32msg.rect = union_rect;
++      wm_paint_msg->lpNext = NULL;
++
++      *((tail) ? &(tail->lpNext) : &tail) = wm_paint_msg;
++      lpHead = head ? head : wm_paint_msg;
++      lpTail = wm_paint_msg;
++      nQueue++;
++    }
++
++  // check nQueue
++  {
++    size_t i = 0;
++    for(int_msg* lpCur = lpHead; lpCur != NULL ; lpCur = lpCur->lpNext )
++      ++i ;
++    eassert(i == nQueue );
++  }
++  return;
++}
++
++BOOL
++get_next_msg (W32Msg * lpmsg, BOOL bWait)
++{
++  BOOL bRet = FALSE;
++  enter_crit ();
++  /* The while loop takes care of multiple sets */
++  while (!nQueue && bWait)
++    {
++      leave_crit ();
++      WaitForSingleObject (input_available, INFINITE);
++      enter_crit ();
++    }
++  if (nQueue)
++    {
++      /* Consolidate WM_PAINT messages to optimize redrawing.  */
++      merge_wm_paint_in_get_next_msg();
++
++      *lpmsg = lpHead->w32msg;
++
++      {
++	int_msg * lpCur = lpHead;
++	lpHead = lpHead->lpNext;
++	myfree (lpCur);
++      }
++      nQueue--;
++      bRet = TRUE;
++    }
++
++  if (nQueue == 0)
++    ResetEvent (input_available);
++
++  leave_crit ();
++
++  return (bRet);
++}
++#else
+ BOOL
+ get_next_msg (W32Msg * lpmsg, BOOL bWait)
+ {
+@@ -279,6 +375,8 @@ get_next_msg (W32Msg * lpmsg, BOOL bWait
+   return (bRet);
+ }
+ 
++#endif
++
+ extern char * w32_strerror (int error_no);
+ 
+ /* Tell the main thread that we have input available; if the main
+@@ -362,3 +460,5 @@ drain_message_queue (void)
+     }
+   return retval;
+ }
++
++

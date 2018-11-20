@@ -2,6 +2,15 @@ Index: src/w32fns.c
 ===================================================================
 --- src.orig/w32fns.c
 +++ src/w32fns.c
+@@ -3344,7 +3344,7 @@ w32_msg_pump (deferred_msg * msg_buf)
+ #endif
+ 	    }
+ 	}
+-      else
++
+ 	{
+ 	  if (w32_unicode_gui)
+ 	    DispatchMessageW (&msg);
 @@ -4551,7 +4551,7 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARA
  	 dialog boxes, such as the file selection dialog or font
  	 selection dialog.  So something else is needed to fix the
